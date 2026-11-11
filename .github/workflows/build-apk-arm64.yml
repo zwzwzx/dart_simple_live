@@ -58,6 +58,20 @@ jobs:
           printf 'storePassword=dummy\nkeyPassword=dummy\nkeyAlias=dummy\nstoreFile=dummy.keystore\n' > key.properties
           echo "created dummy key.properties"
 
+      # 第三方插件 auto_orientation_v2 2.4.7 的 android/build.gradle 是为 AGP9 写的
+      # （kotlin{} 块 / classpath AGP9.4.1 / compileSdkVersion 36），在 Flutter 3.38 的
+      # AGP8.9.1 下会报 "Could not find method kotlin()"。pub get 后 patch pub-cache 里
+      # 那个文件为 AGP8 兼容写法（删 kotlin 块、AGP 9->8.9.1、compileSdk 36->35）
+      - name: Patch auto_orientation_v2 for AGP 8
+        run: |
+          f=$(ls "$HOME/.pub-cache/hosted/pub.dev"/auto_orientation_v2-*/android/build.gradle 2>/dev/null | head -1)
+          echo "plugin gradle: ${f:-<none>}"
+          if [ -n "$f" ]; then
+            perl -0777 -i -pe 's/kotlin\s*\{[\s\S]*?compilerOptions\s*\{[\s\S]*?\}\s*\}//g; s/com\.android\.tools\.build:gradle:9\.4\.1/com.android.tools.build:gradle:8.9.1/g; s/compileSdkVersion\s+36/compileSdkVersion 35/g' "$f"
+            echo "--- patched build.gradle ---"
+            cat "$f"
+          fi
+
       # 只出 arm64-v8a 单架构 debug apk（免签名，手机可直接装；不产 universal/其余架构）
       - name: Build arm64-v8a debug APK
         working-directory: simple_live_app
