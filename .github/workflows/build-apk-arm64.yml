@@ -50,21 +50,13 @@ jobs:
       # 项目 bug 规避：app/build.gradle.kts 的 release signingConfig 在 Gradle 配置阶段
       # 就执行 `keystoreProperties["keyAlias"] as String`，而 key.properties（作者本地签名）
       # 未提交仓库 → null 强转 String 崩溃，debug 也编不动。补一个 dummy 文件占位即可
-      # （debug 包不走 release 签名，占位值不影响产物）
+      # （debug 包不走 release 签名，占位值不影响产物；用 printf 避免 heredoc 在 Actions 的缩进坑）
       - name: Provide dummy key.properties
         working-directory: simple_live_app/android
         run: |
-          if [ ! -f key.properties ]; then
-            cat > key.properties <<'EOF'
-            storePassword=dummy
-            keyPassword=dummy
-            keyAlias=dummy
-            storeFile=dummy.keystore
-            EOF
-            echo "created dummy key.properties"
-          else
-            echo "key.properties exists, skip"
-          fi
+          [ -f key.properties ] && { echo "key.properties exists, skip"; exit 0; }
+          printf 'storePassword=dummy\nkeyPassword=dummy\nkeyAlias=dummy\nstoreFile=dummy.keystore\n' > key.properties
+          echo "created dummy key.properties"
 
       # 只出 arm64-v8a 单架构 debug apk（免签名，手机可直接装；不产 universal/其余架构）
       - name: Build arm64-v8a debug APK
